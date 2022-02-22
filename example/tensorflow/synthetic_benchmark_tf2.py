@@ -4,6 +4,7 @@ import argparse
 import os
 import numpy as np
 import timeit
+import importlib
 
 import tensorflow as tf
 import byteps.tensorflow as bps
@@ -35,7 +36,7 @@ args.cuda = not args.no_cuda
 
 bps.init()
 
-# pin GPU to be used to process local rank (one GPU per process)
+""" # pin GPU to be used to process local rank (one GPU per process)
 if args.cuda:
     gpus = tf.config.experimental.list_physical_devices('GPU')
     for gpu in gpus:
@@ -43,10 +44,33 @@ if args.cuda:
     if gpus:
         tf.config.experimental.set_visible_devices(gpus[bps.local_rank()], 'GPU')
 else:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1" """
 
-# Set up standard model.
-model = getattr(applications, args.model)(weights=None)
+
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+  # Restrict TensorFlow to only allocate some of memory on the first GPU
+  try:
+    tf.config.set_logical_device_configuration(
+        gpus[0],
+        [tf.config.LogicalDeviceConfiguration(memory_limit=3072)])
+    logical_gpus = tf.config.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Virtual devices must be set before GPUs have been initialized
+    print(e)
+
+
+if args.model.startswith('vgg19'):
+    model = getattr(importlib.import_module("tensorflow.python.keras.applications.vgg19"), "VGG19")(weights=None)
+elif args.model.startswith('resnet50'):
+    model = getattr(importlib.import_module("tensorflow.python.keras.applications.resnet"), "ResNet50")(weights=None)
+else:
+    # Set up standard model.
+    model = getattr(applications, args.model)(weights=None)
+
+
+
 opt = tf.optimizers.SGD(0.01)
 
 data = tf.random.uniform([args.batch_size, 224, 224, 3])

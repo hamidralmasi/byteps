@@ -49,6 +49,8 @@ if args.cuda:
     torch.cuda.set_device(bps.local_rank())
 
 cudnn.benchmark = True
+#torch.cuda.empty_cache()
+#torch.cuda.set_per_process_memory_fraction(0.1)
 
 # Set up standard model.
 model = getattr(models, args.model)(num_classes=args.num_classes)
