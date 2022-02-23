@@ -18,7 +18,7 @@
 #endif
 
 #include <cmath>
-
+#include "logging.h"
 #include "cpu_reducer.h"
 
 namespace byteps {
@@ -88,6 +88,7 @@ template <typename T>
 int CpuReducer::_sum(T* dst, const T* src, size_t len) {
 #pragma omp parallel for simd num_threads(_num_threads)
   for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
+    BPS_LOG(INFO) << "IN_SUM SRC: " << src << "\t" << "DST: " << dst << "\t";
     dst[i] = dst[i] + src[i];
   }
   return 0;
