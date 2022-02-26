@@ -36,7 +36,7 @@ args.cuda = not args.no_cuda
 
 bps.init()
 
-""" # pin GPU to be used to process local rank (one GPU per process)
+# pin GPU to be used to process local rank (one GPU per process)
 if args.cuda:
     gpus = tf.config.experimental.list_physical_devices('GPU')
     for gpu in gpus:
@@ -44,10 +44,10 @@ if args.cuda:
     if gpus:
         tf.config.experimental.set_visible_devices(gpus[bps.local_rank()], 'GPU')
 else:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1" """
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
-gpus = tf.config.list_physical_devices('GPU')
+""" gpus = tf.config.list_physical_devices('GPU')
 if gpus:
   # Restrict TensorFlow to only allocate some of memory on the first GPU
   try:
@@ -58,7 +58,7 @@ if gpus:
     print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
   except RuntimeError as e:
     # Virtual devices must be set before GPUs have been initialized
-    print(e)
+    print(e) """
 
 
 if args.model.startswith('vgg19'):
