@@ -260,6 +260,10 @@ void BytePSHandler(const ps::KVMeta& req_meta,
     CHECK_EQ(req_data.lens.size(), (size_t)1);
     CHECK_EQ(req_data.vals.size(), (size_t)req_data.lens[0]);
     auto stored = GetStore(key);
+
+    auto stored_replica = GetStore(key);
+    auto len_replica = (size_t)req_data.lens[0] * (size_t)ps::NumWorkers();
+
     auto len = (size_t)req_data.lens[0];
     auto recved = reinterpret_cast<char*>(req_data.vals.data());
 
@@ -282,9 +286,17 @@ void BytePSHandler(const ps::KVMeta& req_meta,
       // init stored buffer, use page aligned memory
       size_t aligned_size = common::Align(len, type.dtype);
       PageAlignedMalloc((void**)&stored->tensor, aligned_size);
+
+      size_t aligned_replica_size = common::Align(len_replica, type.dtype);
+      PageAlignedMalloc((void**)&stored_replica->tensor, aligned_replica_size);
+
       stored->len = len;
       stored->dtype = type.dtype;
       CHECK(stored->tensor);
+
+      stored_replica->len = len_replica;
+      stored_replica->dtype = type.dtype;
+      CHECK(stored_replica->tensor);
 
       bps_reducer_->copy(stored->tensor, recved,
                          len);  // we may not need this copy
@@ -312,6 +324,12 @@ void BytePSHandler(const ps::KVMeta& req_meta,
                                      stored->tensor, recved,   stored->len,
                                      COPY_FIRST,     req_data, req_meta};
           engine_queues_[tid]->Push(msg);
+
+          BytePSEngineMessage msg_replica = {timestamp_,   type,     key,
+                                     stored_replica->tensor, recved,   stored->len,
+                                     COPY_FIRST,     req_data, req_meta};
+          engine_queues_[tid]->Push(msg_replica);
+
         } else {  // async mode, directly add to the buffer
           CHECK_GE(bps_reducer_->sum((void*)stored->tensor, (void*)recved, len,
                                      bps_reducer_->GetDataType(stored->dtype)),
@@ -336,10 +354,17 @@ void BytePSHandler(const ps::KVMeta& req_meta,
                        bps_reducer_->GetDataType(updates->merged.dtype)),
                    0);
         } else {  // non-blocking
+        
           BytePSEngineMessage msg = {timestamp_++,   type,     key,
                                      stored->tensor, recved,   stored->len,
                                      SUM_RECV,       req_data, req_meta};
           engine_queues_[tid]->Push(msg);
+
+          // TODO: Figure out the correct dest address in memory, i.e. shift 
+          BytePSEngineMessage msg_replica = {timestamp_,   type,     key,
+                                     stored_replica->tensor, recved,   stored->len,
+                                     COPY_FIRST,       req_data, req_meta};
+          engine_queues_[tid]->Push(msg_replica);
         }
       }
       // add a worker information (request.size() is the # workers received)
