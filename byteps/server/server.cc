@@ -300,8 +300,8 @@ void BytePSHandler(const ps::KVMeta& req_meta,
       CHECK(stored->tensor);
 
       stored_replica->len = len_replica;
-      //stored_replica->dtype = type.dtype;
-      //CHECK(stored_replica->tensor);
+      stored_replica->dtype = type.dtype;
+      CHECK(stored_replica->tensor);
 
       bps_reducer_->copy(stored->tensor, recved,
                          len);  // we may not need this copy
