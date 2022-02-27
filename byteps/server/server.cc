@@ -352,7 +352,7 @@ void BytePSHandler(const ps::KVMeta& req_meta,
                     << "\t"
                     << "recved: " << DEBUG_PRINT_TENSOR_VALUE(recved) << "\t"
                     << "len: " << len << "\t"
-                    << "addr: " << DEBUG_PRINT_TENSOR_ADDRESS(recved);
+                    << "address: " << DEBUG_PRINT_TENSOR_ADDRESS(recved);
         }
         if (is_engine_blocking_) {
           // TODO: decompress
