@@ -305,6 +305,8 @@ void BytePSHandler(const ps::KVMeta& req_meta,
 
       bps_reducer_->copy(stored->tensor, recved,
                          len);  // we may not need this copy
+      bps_reducer_->copy(stored_replica->tensor, recved,
+                         len_replica);  // we may not need this copy
       for (const auto& req : updates->request) {
         SendPushResponse(key, req, server);
       }
