@@ -369,7 +369,7 @@ void BytePSHandler(const ps::KVMeta& req_meta,
 
           // TODO: Figure out the correct dest address in memory, i.e. shift 
           BytePSEngineMessage msg_replica = {timestamp_,   type,     key,
-                                     stored_replica->tensor, recved,   stored->len,
+                                     stored_replica->tensor + len * (ps::NumWorkers() - 1), recved,   stored->len,
                                      COPY_FIRST,       req_data, req_meta};
           engine_queues_[tid]->Push(msg_replica);
         }
