@@ -332,10 +332,10 @@ void BytePSHandler(const ps::KVMeta& req_meta,
                                      COPY_FIRST,     req_data, req_meta};
           engine_queues_[tid]->Push(msg);
 
-/*           BytePSEngineMessage msg_replica = {timestamp_,   type,     key,
+          BytePSEngineMessage msg_replica = {timestamp_,   type,     key,
                                      stored_replica->tensor, recved,   stored->len,
                                      COPY_FIRST,     req_data, req_meta};
-          engine_queues_[tid]->Push(msg_replica); */
+          engine_queues_[tid]->Push(msg_replica);
 
         } else {  // async mode, directly add to the buffer
           CHECK_GE(bps_reducer_->sum((void*)stored->tensor, (void*)recved, len,
@@ -366,12 +366,12 @@ void BytePSHandler(const ps::KVMeta& req_meta,
                                      stored->tensor, recved,   stored->len,
                                      SUM_RECV,       req_data, req_meta};
           engine_queues_[tid]->Push(msg);
-/* 
+
           // TODO: Figure out the correct dest address in memory, i.e. shift 
           BytePSEngineMessage msg_replica = {timestamp_,   type,     key,
                                      stored_replica->tensor, recved,   stored->len,
                                      COPY_FIRST,       req_data, req_meta};
-          engine_queues_[tid]->Push(msg_replica); */
+          engine_queues_[tid]->Push(msg_replica);
         }
       }
       // add a worker information (request.size() is the # workers received)
