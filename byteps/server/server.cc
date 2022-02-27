@@ -31,6 +31,11 @@ BytePSArray* GetStore(uint64_t key) {
   return &store_[key];
 }
 
+BytePSArray* GetStoreReplica(uint64_t key) {
+  std::lock_guard<std::mutex> lock(store_replica_mu_);
+  return &store_replica_[key];
+}
+
 UpdateBuf* GetUpdateBuf(uint64_t key) {
   std::lock_guard<std::mutex> lock(update_buf_mu_);
   return &update_buf_[key];
@@ -261,8 +266,8 @@ void BytePSHandler(const ps::KVMeta& req_meta,
     CHECK_EQ(req_data.vals.size(), (size_t)req_data.lens[0]);
     auto stored = GetStore(key);
 
-    // auto stored_replica = GetStore(key);
-    // auto len_replica = (size_t)req_data.lens[0] * (size_t)ps::NumWorkers();
+    auto stored_replica = GetStoreReplica(key);
+    auto len_replica = (size_t)(req_data.lens[0] * ps::NumWorkers());
 
     auto len = (size_t)req_data.lens[0];
     auto recved = reinterpret_cast<char*>(req_data.vals.data());
@@ -287,15 +292,15 @@ void BytePSHandler(const ps::KVMeta& req_meta,
       size_t aligned_size = common::Align(len, type.dtype);
       PageAlignedMalloc((void**)&stored->tensor, aligned_size);
 
-      // size_t aligned_replica_size = common::Align(len_replica, type.dtype);
-      // PageAlignedMalloc((void**)&stored_replica->tensor, aligned_replica_size);
+      size_t aligned_replica_size = common::Align(len_replica, type.dtype);
+      PageAlignedMalloc((void**)&stored_replica->tensor, aligned_replica_size);
 
       stored->len = len;
       stored->dtype = type.dtype;
       CHECK(stored->tensor);
 
-      // stored_replica->len = len_replica;
-      // stored_replica->dtype = type.dtype;
+      stored_replica->len = len_replica;
+      //stored_replica->dtype = type.dtype;
       //CHECK(stored_replica->tensor);
 
       bps_reducer_->copy(stored->tensor, recved,

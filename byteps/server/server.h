@@ -116,6 +116,9 @@ std::unordered_map<uint64_t, std::unique_ptr<common::compressor::Compressor>> co
 std::mutex store_mu_;
 std::unordered_map<uint64_t, BytePSArray> store_;
 
+std::mutex store_replica_mu_;
+std::unordered_map<uint64_t, BytePSArray> store_replica_;
+
 // hash function
 std::mutex hash_mu_;
 std::unordered_map<uint64_t, size_t> hash_cache_;
