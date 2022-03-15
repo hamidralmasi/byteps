@@ -62,9 +62,9 @@ if gpus:
 
 
 if args.model.startswith('vgg19'):
-    model = getattr(importlib.import_module("tensorflow.python.keras.applications.vgg19"), "VGG19")(weights=None)
+    model = getattr(importlib.import_module("tensorflow.keras.applications.vgg19"), "VGG19")(weights=None)
 elif args.model.startswith('resnet50'):
-    model = getattr(importlib.import_module("tensorflow.python.keras.applications.resnet"), "ResNet50")(weights=None)
+    model = getattr(importlib.import_module("tensorflow.keras.applications.resnet"), "ResNet50")(weights=None)
 else:
     # Set up standard model.
     model = getattr(applications, args.model)(weights=None)
