@@ -59,6 +59,7 @@ bool CpuReducer::isRoot() {
 int CpuReducer::sum(void* dst, const void* src, size_t len, DataType dtype) {
   switch (dtype) {
     case BYTEPS_FLOAT32:
+      BPS_LOG(INFO) << "BYTEPS_FLOAT32";
       return _sum(reinterpret_cast<float*>(dst),
                   reinterpret_cast<const float*>(src), len);
     case BYTEPS_FLOAT64:

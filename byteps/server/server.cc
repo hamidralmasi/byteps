@@ -116,6 +116,8 @@ void BytePSServerEngineThread(int i) {
     } else {
       if (msg.ops == ALL_RECV) {
         // 2. no compress
+        LOG(INFO) << "ALL_RECV NO COMPRESS";
+
         auto updates = GetUpdateBuf(msg.key);
         updates->merged.tensor = reinterpret_cast<char*>(msg.src);
         updates->merged.len = msg.len;
@@ -149,6 +151,8 @@ void BytePSServerEngineThread(int i) {
       } break;
 
       case ALL_RECV: {
+        LOG(INFO) << "ALL_RECV OTHER";
+
         std::lock_guard<std::mutex> lock(flag_mu_[i]);
         if (is_push_finished_[i].find(msg.key) == is_push_finished_[i].end()) {
           is_push_finished_[i][msg.key] = false;
