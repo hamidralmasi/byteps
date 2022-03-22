@@ -268,8 +268,11 @@ void BytePSHandler(const ps::KVMeta& req_meta,
 
     auto stored_replica = GetStoreReplica(key);
     auto len_replica = (size_t)(req_data.lens[0] * ps::NumWorkers());
-
     auto len = (size_t)req_data.lens[0];
+
+    // LOG(INFO) << "LEN:" << "\t" << len << "\t LEN REPLICA: \t" << len_replica;
+
+
     auto recved = reinterpret_cast<char*>(req_data.vals.data());
 
     if (!stored->tensor) {
@@ -367,9 +370,13 @@ void BytePSHandler(const ps::KVMeta& req_meta,
                                      SUM_RECV,       req_data, req_meta};
           engine_queues_[tid]->Push(msg);
 
-          // TODO: Figure out the correct dest address in memory, i.e. shift 
+          // TODO: Figure out the correct dest address in memory, i.e. shift
+          uint64_t num_contributors = updates->request.size();
+
+          //LOG(INFO) << "tid:\t" << tid << "\t key \t" << key << "\tupdates->request.size\t" << updates->request.size() << "\t NUM_CONTRIBUTORS: \t" << num_contributors << "\t len * num_contributors: \t" << len * num_contributors << "\t stored->len \t" << stored->len;
+
           BytePSEngineMessage msg_replica = {timestamp_,   type,     key,
-                                     stored_replica->tensor + len * (ps::NumWorkers() - 1), recved,   stored->len,
+                                     stored_replica->tensor + len * num_contributors, recved,   stored->len,
                                      COPY_FIRST,       req_data, req_meta};
           engine_queues_[tid]->Push(msg_replica);
         }
