@@ -56,10 +56,12 @@ bool CpuReducer::isRoot() {
 }
 #endif
 
+
+
 int CpuReducer::sum(void* dst, const void* src, size_t len, DataType dtype) {
   switch (dtype) {
     case BYTEPS_FLOAT32:
-      BPS_LOG(INFO) << "BYTEPS_FLOAT32";
+      // BPS_LOG(INFO) << "BYTEPS_FLOAT32";
       return _sum(reinterpret_cast<float*>(dst),
                   reinterpret_cast<const float*>(src), len);
     case BYTEPS_FLOAT64:
@@ -81,6 +83,46 @@ int CpuReducer::sum(void* dst, const void* src, size_t len, DataType dtype) {
                   reinterpret_cast<const int64_t*>(src), len);
     default:
       BPS_CHECK(0) << "Unsupported data type: " << dtype;
+  }
+  return 0;
+}
+
+int CpuReducer::sum_serial(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers) {
+  switch (dtype) {
+    case BYTEPS_FLOAT32:
+      return _sum_serial(reinterpret_cast<float*>(dst),
+                    reinterpret_cast<const float*>(src), len, num_workers);
+    case BYTEPS_FLOAT64:
+      return _sum_serial(reinterpret_cast<double*>(dst),
+                    reinterpret_cast<const double*>(src), len, num_workers);
+    // case BYTEPS_FLOAT16:
+    //   return _sum_serial(dst, src, len, num_workers);
+    case BYTEPS_UINT8:
+      return _sum_serial(reinterpret_cast<uint8_t*>(dst),
+                  reinterpret_cast<const uint8_t*>(src), len, num_workers);
+    case BYTEPS_INT32:
+      return _sum_serial(reinterpret_cast<int32_t*>(dst),
+                  reinterpret_cast<const int32_t*>(src), len, num_workers);
+    case BYTEPS_INT8:
+      return _sum_serial(reinterpret_cast<int8_t*>(dst),
+                  reinterpret_cast<const int8_t*>(src), len, num_workers);
+    case BYTEPS_INT64:
+      return _sum_serial(reinterpret_cast<int64_t*>(dst),
+                  reinterpret_cast<const int64_t*>(src), len, num_workers);
+    default:
+      BPS_CHECK(0) << "Unsupported data type: " << dtype;
+  }
+  return 0;
+}
+
+template <typename T>
+int CpuReducer::_sum_serial(T* dst, const T* src, size_t len, size_t num_workers) {
+  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
+    float sum = 0;
+    for (size_t j = 0; j < num_workers; ++j) {
+      sum = sum + src[i + j * (len / (size_t)sizeof(T))];
+    }
+    dst[i] = sum;
   }
   return 0;
 }

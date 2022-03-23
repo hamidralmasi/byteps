@@ -116,10 +116,12 @@ void BytePSServerEngineThread(int i) {
     } else {
       if (msg.ops == ALL_RECV) {
         // 2. no compress
-        LOG(INFO) << "ALL_RECV NO COMPRESS";
-
+        // LOG(INFO) << "ALL_RECV NO COMPRESS";
+        // Geometrically reduce it here, have the replica in msg.src, reduce it in msg.dst
+        auto bps_type = bps_reducer_->GetDataType(msg.type.dtype);
+        bps_reducer_->sum_serial(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers());
         auto updates = GetUpdateBuf(msg.key);
-        updates->merged.tensor = reinterpret_cast<char*>(msg.src);
+        updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
         updates->merged.len = msg.len;
       }
     }
@@ -151,7 +153,7 @@ void BytePSServerEngineThread(int i) {
       } break;
 
       case ALL_RECV: {
-        LOG(INFO) << "ALL_RECV OTHER";
+        // LOG(INFO) << "ALL_RECV OTHER";
 
         std::lock_guard<std::mutex> lock(flag_mu_[i]);
         if (is_push_finished_[i].find(msg.key) == is_push_finished_[i].end()) {
@@ -406,7 +408,7 @@ void BytePSHandler(const ps::KVMeta& req_meta,
         } else {
           BytePSEngineMessage msg = {
               timestamp_++,   type,        key,     stored->tensor,
-              stored->tensor, stored->len, ALL_RECV};
+              stored_replica->tensor, stored->len, ALL_RECV};
           engine_queues_[tid]->Push(msg);
           engine_queues_[tid]->ClearCounter(key);
         }

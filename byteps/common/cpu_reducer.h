@@ -46,6 +46,7 @@ class CpuReducer {
   }
 
   int sum(void* dst, const void* src, size_t len, DataType dtype);
+  int sum_serial(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers);
   int sum(void* dst, const void* src1, const void* src2, size_t len,
           DataType dtype);
 
@@ -180,6 +181,10 @@ class CpuReducer {
 
   template <typename T>
   int _sum(T* dst, const T* src, size_t len);
+  
+  template <typename T>
+  int _sum_serial(T* dst, const T* src, size_t len, size_t num_workers);
+
   template <typename T>
   int _sum(T* dst, const T* src1, const T* src2, size_t len);
 
