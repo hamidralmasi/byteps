@@ -18,6 +18,7 @@
 #endif
 
 #include <cmath>
+#include <algorithm>
 #include "logging.h"
 #include "cpu_reducer.h"
 
@@ -96,7 +97,7 @@ int CpuReducer::sum_serial(void* dst, const void* src, size_t len, DataType dtyp
       return _sum_serial(reinterpret_cast<double*>(dst),
                     reinterpret_cast<const double*>(src), len, num_workers);
     // case BYTEPS_FLOAT16:
-    //   return _sum_serial(dst, src, len, num_workers);
+    //   return _sum_serial_float16(dst, src, len, num_workers);
     case BYTEPS_UINT8:
       return _sum_serial(reinterpret_cast<uint8_t*>(dst),
                   reinterpret_cast<const uint8_t*>(src), len, num_workers);
@@ -114,6 +115,79 @@ int CpuReducer::sum_serial(void* dst, const void* src, size_t len, DataType dtyp
   }
   return 0;
 }
+
+int CpuReducer::median(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers) {
+  switch (dtype) {
+    case BYTEPS_FLOAT32:
+      return _median(reinterpret_cast<float*>(dst),
+                     reinterpret_cast<const float*>(src), len, num_workers);
+    case BYTEPS_FLOAT64:
+      return _median(reinterpret_cast<double*>(dst),
+                     reinterpret_cast<const double*>(src), len, num_workers);
+    // case BYTEPS_FLOAT16:
+    //   return _median_float16(dst, src, len, num_workers);
+    case BYTEPS_UINT8:
+      return _median(reinterpret_cast<uint8_t*>(dst),
+                     reinterpret_cast<const uint8_t*>(src), len, num_workers);
+    case BYTEPS_INT32:
+      return _median(reinterpret_cast<int32_t*>(dst),
+                     reinterpret_cast<const int32_t*>(src), len, num_workers);
+    case BYTEPS_INT8:
+      return _median(reinterpret_cast<int8_t*>(dst),
+                     reinterpret_cast<const int8_t*>(src), len, num_workers);
+    case BYTEPS_INT64:
+      return _median(reinterpret_cast<int64_t*>(dst),
+                     reinterpret_cast<const int64_t*>(src), len, num_workers);
+    default:
+      BPS_CHECK(0) << "Unsupported data type: " << dtype;
+  }
+  return 0;
+}
+
+// src array's length is num_workers * len. 
+// Elements 0, len, 2*len, ..., (num_workers-1)*len are the data of worker 0,
+// Elements 1, len+1, 2*len+1, ..., (num_workers-1)*len+1 are the data of worker 1,
+// ...
+// Elements (num_workers-1)*len, (num_workers-1)*len+1, ..., (num_workers-1)*len+len-1 are the data of worker num_workers-1
+// dst array's length is len.
+template <typename T>
+int CpuReducer::_median(T* dst, const T* src, size_t len, size_t num_workers) {
+  // Create len arrays, each array is of size num_workers.
+  // First array store the first element of each worker's data.
+  // Second array store the second element of each worker's data.
+  // ...
+  // Last array store the last element of each worker's data.
+  BPS_LOG(INFO) << "CREATING ARRAYS";
+  std::vector<T*> arrays(len / (size_t)sizeof(T));
+  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
+    arrays[i] = new T[num_workers];
+  }
+  BPS_LOG(INFO) << "COPYING VALUES";
+  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
+    for (size_t j = 0; j < num_workers; ++j) {
+      arrays[i][j] = src[i + j*len / (size_t)sizeof(T)];
+    }
+  }
+  // Sort the first array, then sort the second array, ..., then sort the last array.
+  BPS_LOG(INFO) << "SORTING";
+  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
+    std::sort(arrays[i], arrays[i] + num_workers);
+  }
+  // First element of dst is the median of the first array.
+  // Second element of dst is the median of the second array.
+  // ...
+  // Last element of dst is the median of the last array.
+  BPS_LOG(INFO) << "COMPUTING MEDIAN";
+  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
+    if (num_workers % 2 == 0) {
+      dst[i] = (arrays[i][num_workers / 2 - 1] + arrays[i][num_workers / 2]) / 2;
+    } else {
+      dst[i] = arrays[i][num_workers / 2];
+    }
+  } 
+  return 0;
+}
+
 
 template <typename T>
 int CpuReducer::_sum_serial(T* dst, const T* src, size_t len, size_t num_workers) {

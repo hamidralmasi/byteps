@@ -120,6 +120,7 @@ void BytePSServerEngineThread(int i) {
         // Geometrically reduce it here, have the replica in msg.src, reduce it in msg.dst
         auto bps_type = bps_reducer_->GetDataType(msg.type.dtype);
         bps_reducer_->sum_serial(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers());
+        // bps_reducer_->median(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers());
         auto updates = GetUpdateBuf(msg.key);
         updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
         updates->merged.len = msg.len;
