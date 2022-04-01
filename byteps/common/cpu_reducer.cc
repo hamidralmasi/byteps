@@ -96,9 +96,9 @@ int CpuReducer::_hybrid(T* dst, const T* src, size_t len, size_t num_workers, fl
     }
     std::sort(data.begin(), data.end());
     if (data.size() % 2 == 0) {
-      dst[i] = (1 - alpha) * dst[i] + alpha * (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
+      dst[i] = (1 - alpha) * dst[i] + alpha * num_workers * (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
     } else {
-      dst[i] = (1 - alpha) * dst[i] + alpha * data[data.size() / 2];
+      dst[i] = (1 - alpha) * dst[i] + alpha * num_workers * data[data.size() / 2];
     }
   }
   return 0;
@@ -150,9 +150,9 @@ int CpuReducer::_median(T* dst, const T* src, size_t len, size_t num_workers) {
     }
     std::sort(data.begin(), data.end());
     if (data.size() % 2 == 0) {
-      dst[i] = (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
+      dst[i] = num_workers * (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
     } else {
-      dst[i] = data[data.size() / 2];
+      dst[i] = num_workers * data[data.size() / 2];
     }
   }
   return 0;

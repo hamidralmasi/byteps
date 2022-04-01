@@ -358,7 +358,7 @@ void InitTensor(BPSContext &context, size_t size, int dtype, void *cpubuff) {
   char *data = const_cast<char *>(static_cast<const char *>(context.cpubuff));
   accumulated = 0;
   size_t i = 0;
-  BPS_LOG(INFO) << "tensor size=" << size;
+  // BPS_LOG(INFO) << "tensor size=" << size;
   // small tensor does not need to be compressed
   if (size < BytePSGlobal::GetMinCompressBound()) {
     context.kwargs.clear();
