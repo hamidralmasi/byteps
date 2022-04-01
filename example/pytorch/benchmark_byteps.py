@@ -91,6 +91,7 @@ def benchmark_step():
     optimizer.zero_grad()
     output = model(data)
     loss = F.cross_entropy(output, target)
+    log('Rank {}: loss = {:.3f}'.format(bps.rank(), loss.item()))
     loss.backward()
     optimizer.step()
 

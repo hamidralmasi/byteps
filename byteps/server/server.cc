@@ -119,10 +119,23 @@ void BytePSServerEngineThread(int i) {
         // LOG(INFO) << "ALL_RECV NO COMPRESS";
         // Geometrically reduce it here, have the replica in msg.src, reduce it in msg.dst
         auto bps_type = bps_reducer_->GetDataType(msg.type.dtype);
-        bps_reducer_->sum_serial(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers());
-        // bps_reducer_->median(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers());
         auto updates = GetUpdateBuf(msg.key);
-        updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
+
+        if(is_sum_){
+          updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
+        }
+        else if (is_sum_serial_){
+          bps_reducer_->sum_serial(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers());
+          updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
+        }
+        else if (is_median_){
+          bps_reducer_->median(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers());
+          updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
+        }
+        else if (is_hybrid_){
+          bps_reducer_->hybrid(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers(), alpha_);
+          updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
+        }
         updates->merged.len = msg.len;
       }
     }
@@ -486,6 +499,13 @@ void init_global_env() {
   debug_key_ = GetEnv("BYTEPS_SERVER_DEBUG_KEY", 0);
   if (debug_mode_)
     LOG(INFO) << "Debug mode enabled! Printing key " << debug_key_;
+
+  // Reduction mode
+  is_sum_ = GetEnv("BYTEPS_SERVER_SUM", 1);
+  is_sum_serial_ = GetEnv("BYTEPS_SERVER_SUMSERIAL", 0);
+  is_median_ = GetEnv("BYTEPS_SERVER_MEDIAN", 0);
+  is_hybrid_ = GetEnv("BYTEPS_SERVER_HYBRID", 0);
+  alpha_ = GetEnv("BYTEPS_SERVER_ALPHA", 0);
 
   // number of engine thread
   // invalid if is_engine_blocking = true

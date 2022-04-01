@@ -86,10 +86,8 @@ def benchmark_step(first_batch):
     with tf.GradientTape() as tape:
         probs = model(data, training=True)
         loss = tf.losses.sparse_categorical_crossentropy(target, probs)
-
     # BytePS: add bps Distributed GradientTape.
     tape = bps.DistributedGradientTape(tape, compression=compression)
-
     gradients = tape.gradient(loss, model.trainable_variables)
     opt.apply_gradients(zip(gradients, model.trainable_variables))
 

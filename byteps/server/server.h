@@ -132,6 +132,12 @@ volatile bool log_key_info_ = false;
 volatile bool sync_mode_ = true;
 volatile bool debug_mode_ = false;
 volatile bool enable_schedule_ = false;
+volatile bool is_sum_ = true;
+volatile bool is_sum_serial_ = false;
+volatile bool is_median_ = false;
+volatile bool is_hybrid_ = false;
+volatile bool alpha_ = 0;
+
 
 ps::Node::Role role_;
 int preferred_rank = -1;

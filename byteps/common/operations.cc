@@ -286,7 +286,8 @@ void InitTensor(BPSContext &context, size_t size, int dtype, void *cpubuff) {
     return;
   }
   CUDA_CALL(cudaSetDevice(BytePSGlobal::GetLocalRank()));
-
+  // BPS_LOG(INFO) << "InitTensor: " << context.tensor_name << ", size=" << size
+  //               << ", dtype=" << dtype << ", rank=" << BytePSGlobal::GetLocalRank();
   BPS_CHECK_GT(size, 0) << "init tensor size not larger than 0";
   // Get metadata
   auto bound = BytePSGlobal::GetPartitionBound();

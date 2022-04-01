@@ -57,64 +57,53 @@ bool CpuReducer::isRoot() {
 }
 #endif
 
-
-
-int CpuReducer::sum(void* dst, const void* src, size_t len, DataType dtype) {
+int CpuReducer::hybrid(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers, float alpha) {
   switch (dtype) {
     case BYTEPS_FLOAT32:
-      // BPS_LOG(INFO) << "BYTEPS_FLOAT32";
-      return _sum(reinterpret_cast<float*>(dst),
-                  reinterpret_cast<const float*>(src), len);
+      return _hybrid(reinterpret_cast<float*>(dst),
+                     reinterpret_cast<const float*>(src), len, num_workers, alpha);
     case BYTEPS_FLOAT64:
-      return _sum(reinterpret_cast<double*>(dst),
-                  reinterpret_cast<const double*>(src), len);
-    case BYTEPS_FLOAT16:
-      return _sum_float16(dst, src, len);
-    case BYTEPS_UINT8:
-      return _sum(reinterpret_cast<uint8_t*>(dst),
-                  reinterpret_cast<const uint8_t*>(src), len);
-    case BYTEPS_INT32:
-      return _sum(reinterpret_cast<int32_t*>(dst),
-                  reinterpret_cast<const int32_t*>(src), len);
-    case BYTEPS_INT8:
-      return _sum(reinterpret_cast<int8_t*>(dst),
-                  reinterpret_cast<const int8_t*>(src), len);
-    case BYTEPS_INT64:
-      return _sum(reinterpret_cast<int64_t*>(dst),
-                  reinterpret_cast<const int64_t*>(src), len);
-    default:
-      BPS_CHECK(0) << "Unsupported data type: " << dtype;
-  }
-  return 0;
-}
-
-int CpuReducer::sum_serial(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers) {
-  switch (dtype) {
-    case BYTEPS_FLOAT32:
-      return _sum_serial(reinterpret_cast<float*>(dst),
-                    reinterpret_cast<const float*>(src), len, num_workers);
-    case BYTEPS_FLOAT64:
-      return _sum_serial(reinterpret_cast<double*>(dst),
-                    reinterpret_cast<const double*>(src), len, num_workers);
+      return _hybrid(reinterpret_cast<double*>(dst),
+                     reinterpret_cast<const double*>(src), len, num_workers, alpha);
     // case BYTEPS_FLOAT16:
-    //   return _sum_serial_float16(dst, src, len, num_workers);
+    //   return _hybrid_float16(dst, src, len, num_workers);
     case BYTEPS_UINT8:
-      return _sum_serial(reinterpret_cast<uint8_t*>(dst),
-                  reinterpret_cast<const uint8_t*>(src), len, num_workers);
+      return _hybrid(reinterpret_cast<uint8_t*>(dst),
+                     reinterpret_cast<const uint8_t*>(src), len, num_workers, alpha);
     case BYTEPS_INT32:
-      return _sum_serial(reinterpret_cast<int32_t*>(dst),
-                  reinterpret_cast<const int32_t*>(src), len, num_workers);
+      return _hybrid(reinterpret_cast<int32_t*>(dst),
+                     reinterpret_cast<const int32_t*>(src), len, num_workers, alpha);
     case BYTEPS_INT8:
-      return _sum_serial(reinterpret_cast<int8_t*>(dst),
-                  reinterpret_cast<const int8_t*>(src), len, num_workers);
+      return _hybrid(reinterpret_cast<int8_t*>(dst),
+                     reinterpret_cast<const int8_t*>(src), len, num_workers, alpha);
     case BYTEPS_INT64:
-      return _sum_serial(reinterpret_cast<int64_t*>(dst),
-                  reinterpret_cast<const int64_t*>(src), len, num_workers);
+      return _hybrid(reinterpret_cast<int64_t*>(dst),
+                     reinterpret_cast<const int64_t*>(src), len, num_workers, alpha);
     default:
       BPS_CHECK(0) << "Unsupported data type: " << dtype;
   }
   return 0;
 }
+
+template <typename T>
+int CpuReducer::_hybrid(T* dst, const T* src, size_t len, size_t num_workers, float alpha) {
+
+  size_t num_elements_per_worker = len / (size_t)sizeof(T);
+  for (size_t i = 0; i < num_elements_per_worker; i++) {
+    std::vector<T> data;
+    for (size_t j = 0; j < num_workers; j++) {
+      data.push_back(src[j * num_elements_per_worker + i]);
+    }
+    std::sort(data.begin(), data.end());
+    if (data.size() % 2 == 0) {
+      dst[i] = (1 - alpha) * dst[i] + alpha * (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
+    } else {
+      dst[i] = (1 - alpha) * dst[i] + alpha * data[data.size() / 2];
+    }
+  }
+  return 0;
+}
+
 
 int CpuReducer::median(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers) {
   switch (dtype) {
@@ -152,39 +141,49 @@ int CpuReducer::median(void* dst, const void* src, size_t len, DataType dtype, s
 // dst array's length is len.
 template <typename T>
 int CpuReducer::_median(T* dst, const T* src, size_t len, size_t num_workers) {
-  // Create len arrays, each array is of size num_workers.
-  // First array store the first element of each worker's data.
-  // Second array store the second element of each worker's data.
-  // ...
-  // Last array store the last element of each worker's data.
-  BPS_LOG(INFO) << "CREATING ARRAYS";
-  std::vector<T*> arrays(len / (size_t)sizeof(T));
-  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
-    arrays[i] = new T[num_workers];
-  }
-  BPS_LOG(INFO) << "COPYING VALUES";
-  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
-    for (size_t j = 0; j < num_workers; ++j) {
-      arrays[i][j] = src[i + j*len / (size_t)sizeof(T)];
+  size_t num_elements_per_worker = len / (size_t)sizeof(T);
+  //compute the median of every i'th element of every worker and store it in dst[i]
+  for (size_t i = 0; i < num_elements_per_worker; i++) {
+    std::vector<T> data;
+    for (size_t j = 0; j < num_workers; j++) {
+      data.push_back(src[j * num_elements_per_worker + i]);
     }
-  }
-  // Sort the first array, then sort the second array, ..., then sort the last array.
-  BPS_LOG(INFO) << "SORTING";
-  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
-    std::sort(arrays[i], arrays[i] + num_workers);
-  }
-  // First element of dst is the median of the first array.
-  // Second element of dst is the median of the second array.
-  // ...
-  // Last element of dst is the median of the last array.
-  BPS_LOG(INFO) << "COMPUTING MEDIAN";
-  for (size_t i = 0; i < len / (size_t)sizeof(T); ++i) {
-    if (num_workers % 2 == 0) {
-      dst[i] = (arrays[i][num_workers / 2 - 1] + arrays[i][num_workers / 2]) / 2;
+    std::sort(data.begin(), data.end());
+    if (data.size() % 2 == 0) {
+      dst[i] = (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
     } else {
-      dst[i] = arrays[i][num_workers / 2];
+      dst[i] = data[data.size() / 2];
     }
-  } 
+  }
+  return 0;
+}
+
+
+int CpuReducer::sum_serial(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers) {
+  switch (dtype) {
+    case BYTEPS_FLOAT32:
+      return _sum_serial(reinterpret_cast<float*>(dst),
+                    reinterpret_cast<const float*>(src), len, num_workers);
+    case BYTEPS_FLOAT64:
+      return _sum_serial(reinterpret_cast<double*>(dst),
+                    reinterpret_cast<const double*>(src), len, num_workers);
+    // case BYTEPS_FLOAT16:
+    //   return _sum_serial_float16(dst, src, len, num_workers);
+    case BYTEPS_UINT8:
+      return _sum_serial(reinterpret_cast<uint8_t*>(dst),
+                  reinterpret_cast<const uint8_t*>(src), len, num_workers);
+    case BYTEPS_INT32:
+      return _sum_serial(reinterpret_cast<int32_t*>(dst),
+                  reinterpret_cast<const int32_t*>(src), len, num_workers);
+    case BYTEPS_INT8:
+      return _sum_serial(reinterpret_cast<int8_t*>(dst),
+                  reinterpret_cast<const int8_t*>(src), len, num_workers);
+    case BYTEPS_INT64:
+      return _sum_serial(reinterpret_cast<int64_t*>(dst),
+                  reinterpret_cast<const int64_t*>(src), len, num_workers);
+    default:
+      BPS_CHECK(0) << "Unsupported data type: " << dtype;
+  }
   return 0;
 }
 
@@ -197,6 +196,35 @@ int CpuReducer::_sum_serial(T* dst, const T* src, size_t len, size_t num_workers
       sum = sum + src[i + j * (len / (size_t)sizeof(T))];
     }
     dst[i] = sum;
+  }
+  return 0;
+}
+
+int CpuReducer::sum(void* dst, const void* src, size_t len, DataType dtype) {
+  switch (dtype) {
+    case BYTEPS_FLOAT32:
+      // BPS_LOG(INFO) << "BYTEPS_FLOAT32";
+      return _sum(reinterpret_cast<float*>(dst),
+                  reinterpret_cast<const float*>(src), len);
+    case BYTEPS_FLOAT64:
+      return _sum(reinterpret_cast<double*>(dst),
+                  reinterpret_cast<const double*>(src), len);
+    case BYTEPS_FLOAT16:
+      return _sum_float16(dst, src, len);
+    case BYTEPS_UINT8:
+      return _sum(reinterpret_cast<uint8_t*>(dst),
+                  reinterpret_cast<const uint8_t*>(src), len);
+    case BYTEPS_INT32:
+      return _sum(reinterpret_cast<int32_t*>(dst),
+                  reinterpret_cast<const int32_t*>(src), len);
+    case BYTEPS_INT8:
+      return _sum(reinterpret_cast<int8_t*>(dst),
+                  reinterpret_cast<const int8_t*>(src), len);
+    case BYTEPS_INT64:
+      return _sum(reinterpret_cast<int64_t*>(dst),
+                  reinterpret_cast<const int64_t*>(src), len);
+    default:
+      BPS_CHECK(0) << "Unsupported data type: " << dtype;
   }
   return 0;
 }
