@@ -111,6 +111,7 @@ int CpuReducer::_hybrid(T* dst, const T* src, size_t len, size_t num_workers, fl
         data.push_back(sample);
       }
       else{
+        // BPS_LOG(INFO) << src[j * num_elements_per_worker + i] << " "; 
         data.push_back(src[j * num_elements_per_worker + i]);
       }
     }
