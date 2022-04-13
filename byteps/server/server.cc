@@ -133,7 +133,7 @@ void BytePSServerEngineThread(int i) {
           updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
         }
         else if (is_hybrid_){
-          bps_reducer_->hybrid(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers(), alpha_);
+          bps_reducer_->hybrid(msg.dst, msg.src, msg.len, bps_type, (size_t)ps::NumWorkers(), alpha_, sigma_, is_byzantine_);
           updates->merged.tensor = reinterpret_cast<char*>(msg.dst);
         }
         updates->merged.len = msg.len;
@@ -505,8 +505,17 @@ void init_global_env() {
   is_sum_serial_ = GetEnv("BYTEPS_SERVER_SUMSERIAL", 0);
   is_median_ = GetEnv("BYTEPS_SERVER_MEDIAN", 0);
   is_hybrid_ = GetEnv("BYTEPS_SERVER_HYBRID", 0);
-  alpha_ = GetEnv("BYTEPS_SERVER_ALPHA", 0);
-
+  alpha_ = GetEnv("BYTEPS_SERVER_ALPHA", float(0));
+  sigma_ = GetEnv("BYTEPS_SERVER_SIGMA", float(0.1));
+  is_byzantine_ = GetEnv("BYTEPS_SERVER_BYZANTINE", 0);
+  LOG(INFO) << "BytePS server is in "
+            << (is_sum_ ? " sum " : "")
+            << (is_sum_serial_ ? " sum_serial " : "")
+            << (is_median_ ? " median " : "")
+            << (is_hybrid_ ? " hybrid " : "")
+            << (is_byzantine_ ? " byzantine " : "")
+            << (alpha_ > 0 ? " alpha= " + std::to_string(alpha_) : "")
+            << (sigma_ > 0 ? " sigma= " + std::to_string(sigma_) : "") << " mode";
   // number of engine thread
   // invalid if is_engine_blocking = true
   engine_thread_num_ = GetEnv("BYTEPS_SERVER_ENGINE_THREAD", 4);

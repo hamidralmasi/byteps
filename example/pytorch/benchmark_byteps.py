@@ -1,4 +1,5 @@
 from __future__ import print_function
+from geom_median.torch import compute_geometric_median
 
 import argparse
 import torch.backends.cudnn as cudnn
@@ -90,8 +91,12 @@ def benchmark_step():
     data_index += 1
     optimizer.zero_grad()
     output = model(data)
-    loss = F.cross_entropy(output, target)
-    log('Rank {}: loss = {:.3f}'.format(bps.rank(), loss.item()))
+    
+    loss_points = F.cross_entropy(output, target, reduction = "none")
+    #loss = compute_geometric_median(loss_points.to("cpu"), weights=None).median
+    loss = loss_points.mean()
+    #log('Rank {}: loss = {:.3f}'.format(bps.rank(), loss.item()))
+    log('{:.3f}'.format(loss.item()))
     loss.backward()
     optimizer.step()
 

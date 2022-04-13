@@ -136,7 +136,9 @@ volatile bool is_sum_ = true;
 volatile bool is_sum_serial_ = false;
 volatile bool is_median_ = false;
 volatile bool is_hybrid_ = false;
-volatile bool alpha_ = 0;
+volatile bool is_byzantine_ = false;
+volatile float alpha_ = 0.0;
+volatile float sigma_ = 0.1;
 
 
 ps::Node::Role role_;

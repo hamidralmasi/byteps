@@ -48,7 +48,7 @@ class CpuReducer {
   int sum(void* dst, const void* src, size_t len, DataType dtype);
   int sum_serial(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers);
   int median(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers);
-  int hybrid(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers, float alpha);
+  int hybrid(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers, float alpha, float sigma, bool is_byzantine);
 
   int sum(void* dst, const void* src1, const void* src2, size_t len,
           DataType dtype);
@@ -192,7 +192,7 @@ class CpuReducer {
   int _median(T* dst, const T* src, size_t len, size_t num_workers);
 
   template <typename T>
-  int _hybrid(T* dst, const T* src, size_t len, size_t num_workers, float alpha);
+  int _hybrid(T* dst, const T* src, size_t len, size_t num_workers, float alpha, float sigma, bool is_byzantine);
 
   template <typename T>
   int _sum(T* dst, const T* src1, const T* src2, size_t len);

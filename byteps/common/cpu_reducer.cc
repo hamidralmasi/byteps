@@ -19,8 +19,12 @@
 
 #include <cmath>
 #include <algorithm>
+#include <cstdlib>
+#include <chrono> 
+#include <random>
 #include "logging.h"
 #include "cpu_reducer.h"
+using namespace std; 
 
 namespace byteps {
 namespace common {
@@ -57,28 +61,28 @@ bool CpuReducer::isRoot() {
 }
 #endif
 
-int CpuReducer::hybrid(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers, float alpha) {
+int CpuReducer::hybrid(void* dst, const void* src, size_t len, DataType dtype, size_t num_workers, float alpha, float sigma, bool is_byzantine) {
   switch (dtype) {
     case BYTEPS_FLOAT32:
       return _hybrid(reinterpret_cast<float*>(dst),
-                     reinterpret_cast<const float*>(src), len, num_workers, alpha);
+                     reinterpret_cast<const float*>(src), len, num_workers, alpha, sigma, is_byzantine);
     case BYTEPS_FLOAT64:
       return _hybrid(reinterpret_cast<double*>(dst),
-                     reinterpret_cast<const double*>(src), len, num_workers, alpha);
+                     reinterpret_cast<const double*>(src), len, num_workers, alpha, sigma, is_byzantine);
     // case BYTEPS_FLOAT16:
     //   return _hybrid_float16(dst, src, len, num_workers);
     case BYTEPS_UINT8:
       return _hybrid(reinterpret_cast<uint8_t*>(dst),
-                     reinterpret_cast<const uint8_t*>(src), len, num_workers, alpha);
+                     reinterpret_cast<const uint8_t*>(src), len, num_workers, alpha, sigma, is_byzantine);
     case BYTEPS_INT32:
       return _hybrid(reinterpret_cast<int32_t*>(dst),
-                     reinterpret_cast<const int32_t*>(src), len, num_workers, alpha);
+                     reinterpret_cast<const int32_t*>(src), len, num_workers, alpha, sigma, is_byzantine);
     case BYTEPS_INT8:
       return _hybrid(reinterpret_cast<int8_t*>(dst),
-                     reinterpret_cast<const int8_t*>(src), len, num_workers, alpha);
+                     reinterpret_cast<const int8_t*>(src), len, num_workers, alpha, sigma, is_byzantine);
     case BYTEPS_INT64:
       return _hybrid(reinterpret_cast<int64_t*>(dst),
-                     reinterpret_cast<const int64_t*>(src), len, num_workers, alpha);
+                     reinterpret_cast<const int64_t*>(src), len, num_workers, alpha, sigma, is_byzantine);
     default:
       BPS_CHECK(0) << "Unsupported data type: " << dtype;
   }
@@ -86,13 +90,29 @@ int CpuReducer::hybrid(void* dst, const void* src, size_t len, DataType dtype, s
 }
 
 template <typename T>
-int CpuReducer::_hybrid(T* dst, const T* src, size_t len, size_t num_workers, float alpha) {
+int CpuReducer::_hybrid(T* dst, const T* src, size_t len, size_t num_workers, float alpha, float sigma, bool is_byzantine) {
 
   size_t num_elements_per_worker = len / (size_t)sizeof(T);
+
+  // Pick a random worker i
+  srand(time(0));
+  int byzantine_index = rand() % num_workers;
+  // replace g_i with N(0, sigma)
+  normal_distribution<float> distN(0, sigma);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  float sample;
+
   for (size_t i = 0; i < num_elements_per_worker; i++) {
     std::vector<T> data;
     for (size_t j = 0; j < num_workers; j++) {
-      data.push_back(src[j * num_elements_per_worker + i]);
+      if (is_byzantine && j == byzantine_index) {
+        sample = distN(gen);
+        data.push_back(sample);
+      }
+      else{
+        data.push_back(src[j * num_elements_per_worker + i]);
+      }
     }
     std::sort(data.begin(), data.end());
     if (data.size() % 2 == 0) {
