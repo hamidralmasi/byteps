@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <chrono> 
 #include <random>
+#include <numeric>
 #include "logging.h"
 #include "cpu_reducer.h"
 using namespace std; 
@@ -117,9 +118,10 @@ int CpuReducer::_hybrid(T* dst, const T* src, size_t len, size_t num_workers, fl
     }
     std::sort(data.begin(), data.end());
     if (data.size() % 2 == 0) {
-      dst[i] = (1 - alpha) * dst[i] + alpha * num_workers * (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
+      // If we don't want to count the random noise in the mean, we should replace std::accumulate(data.begin(), data.end(), 0) with dst[i], because dst[i] has already the clean sum stored while streaming from workers.
+      dst[i] = (1 - alpha) * std::accumulate(data.begin(), data.end(), 0) + alpha * num_workers * (data[data.size() / 2 - 1] + data[data.size() / 2]) / 2;
     } else {
-      dst[i] = (1 - alpha) * dst[i] + alpha * num_workers * data[data.size() / 2];
+      dst[i] = (1 - alpha) * std::accumulate(data.begin(), data.end(), 0) + alpha * num_workers * data[data.size() / 2];
     }
   }
   return 0;
